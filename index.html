@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>투네이션 완벽 연동 현황판</title>
     <style>
-        /* 💡 질문자님의 원래 2x2 검은색 디자인 틀 (100% 그대로 보존) */
+        /* 📋 이미지 속 원래 예쁜 검은색 2x2 현황판 디자인 틀 완전 복구 */
         body { background-color: transparent; font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; }
         .widget-container { background-color: #22252a; border-radius: 16px; padding: 24px; width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); color: #ffffff; }
         .widget-header { font-size: 18px; font-weight: bold; margin-bottom: 20px; }
@@ -16,12 +16,12 @@
         .status-value { font-size: 22px; font-weight: bold; }
         .val-smoke-stack { color: #e67e22; } .val-quit-smoke { color: #2ecc71; } .val-fail { color: #f1c40f; } .val-none { color: #95a5a6; }
     </style>
-    <!-- 질문자님 환경 내부의 소켓 라이브러리 파일 주소 그대로 유지 -->
+    <!-- 내부 프로젝트 폴더 혹은 기본 소켓 통신을 연결하기 위한 무전기 라이브러리 -->
     <script src="https://socket.io"></script>
 </head>
 <body>
 
-    <!-- 📋 질문자님의 돼지유사료값 레이아웃 틀 그대로 유지 -->
+    <!-- 📋 돼지유사료값 레이아웃 틀 완벽 주입 -->
     <div class="widget-container">
         <div class="widget-header"><span>📋 돼지유사료값</span></div>
         <div class="allowance-section">
@@ -39,39 +39,39 @@
     <script>
         const MY_ALERT_TOKEN = "75c6b8a21c7823b99a405a00054b2e51";
 
-        // 🔄 [수정 반영] 방송 켤 때마다 저장소 무시하고 무조건 0부터 새로 시작
+        // 🔄 방송 켤 때마다 항상 0원, 0스택으로 깨끗하게 시작 (기존 localStorage 완전 제거)
         let currentMoney = 0;
         let smokeStack = 0;
         let quitSmoke = 0;
         let eatCount = 0;
         let noEatCount = 0;
 
-        // 변동된 숫자를 화면 HTML 텍스트 조각에 정확히 주입하는 갱신 장치
+        // 변동된 숫자를 디자인 틀 안에 즉시 반영하는 화면 갱신 함수
         function updateUI() {
-            document.getElementById('moneyText').innerText = "+" + currentMoney.toLocaleString() + '원';
+            document.getElementById('moneyText').innerText = currentMoney.toLocaleString() + '원';
             document.getElementById('smokeStack').innerText = smokeStack;
             document.getElementById('quitSmoke').innerText = quitSmoke;
             document.getElementById('eatCount').innerText = eatCount;
             document.getElementById('noEatCount').innerText = noEatCount;
         }
         
-        // 켜자마자 초기 화면 상태 0으로 강제 리셋
+        // 시작하자마자 화면을 0으로 초기화
         updateUI();
 
-        // 실시간 투네이션 공식 서버 정상 우회 연동
-        const socket = io("https://alert.toon.at", {
+        // 투네이션 공식 실시간 신호 연동 경로 세팅
+        const socket = io("https://toon.at", {
             path: "/socket.io",
             query: { token: MY_ALERT_TOKEN },
             transports: ["websocket"]
         });
 
-        // 💰 [핵심 계산기] 금액 적립 및 1,000원 이상 후원의 단어 매칭 처리
+        // 💰 후원금 정산 및 1,000원 이상 단어 포함 시 스택 카운트 연산 장치
         function processDonation(amount, comment = "") {
             if (!isNaN(amount) && amount > 0) {
-                // 누적 용돈 금액 무조건 합산
+                // 용돈 금액 추가
                 currentMoney += amount;
 
-                // ⚡ [요청하신 조건] 후원금 1,000원 이상일 때만 후원 메시지 단어 검사 수행
+                // ⚡ 후원금 1,000원 이상 들어왔을 때만 후원 메시지 단어 검사
                 if (amount >= 1000) {
                     if (comment.includes("흡연")) { smokeStack += 1; }
                     if (comment.includes("금연")) { quitSmoke += 1; }
@@ -79,22 +79,21 @@
                     if (comment.includes("먹지마")) { noEatCount += 1; }
                 }
 
-                // 바뀐 데이터 원래 틀 화면에 즉시 주입
+                // 바뀐 데이터 점수판 화면 갱신
                 updateUI();
             }
         }
 
-        // ⚡ 실제 시청자 후원 신호 수신 장치
+        // 실제 시청자 후원 실시간 수신
         socket.on("donation", (data) => { 
             if (data && data.amount) {
                 processDonation(parseInt(data.amount), data.comment || ""); 
             } 
         });
         
-        // ⚡ 투네이션 통합 위젯 [테스트 후원] 버튼 클릭 신호 수신 장치
+        // 투네이션 크리에이터 페이지 [테스트 후원] 대응 수신
         socket.on("test", (data) => { 
             if (data && data.amount) {
-                // 테스트는 후원 문장(text)에 단어가 실려오므로 함께 넘겨 가려냅니다.
                 const testComment = data.comment || data.text || "";
                 processDonation(parseInt(data.amount), testComment); 
             } 
