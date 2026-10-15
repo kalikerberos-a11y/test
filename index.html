@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>로컬 실시간 다이렉트 연동 현황판</title>
+    <style>
+        /* 💡 질문자님이 이미 완벽하게 잡아놓으신 2x2 디자인 틀 구조 그대로 유지 */
+        body { background-color: transparent; font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; }
+        .widget-container { background-color: #22252a; border-radius: 16px; padding: 24px; width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); color: #ffffff; }
+        .widget-header { font-size: 18px; font-weight: bold; margin-bottom: 20px; }
+        .allowance-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .allowance-amount { font-size: 28px; font-weight: 800; color: #f1c40f; }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .status-card { background-color: #2c3036; border-radius: 10px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; }
+        .status-label { font-size: 14px; color: #d1d5db; font-weight: bold; }
+        .status-value { font-size: 22px; font-weight: bold; }
+        .val-smoke-stack { color: #e67e22; } .val-quit-smoke { color: #2ecc71; } .val-fail { color: #f1c40f; } .val-none { color: #95a5a6; }
+    </style>
+    <!-- ⚡ 로컬 환경과 인터넷 투네이션 서버 간의 실시간 통신망을 연결해주는 최신 소켓 인터페이스 -->
+    <script src="https://socket.io"></script>
+</head>
+<body>
+
+    <div class="widget-container">
+        <div class="widget-header"><span>📋 용돈-흡연 현황</span></div>
+        <div class="allowance-section">
+            <span class="allowance-title">누적 용돈</span>
+            <span class="allowance-amount" id="moneyText">0원</span>
+        </div>
+        <div class="status-grid">
+            <div class="status-card"><span class="status-label">흡연스택</span><span class="status-value val-smoke-stack" id="smokeStack">0</span></div>
+            <div class="status-card"><span class="status-label">금연스택</span><span class="status-value val-quit-smoke" id="quitSmoke">0</span></div>
+            <div class="status-card"><span class="status-label">먹어</span><span class="status-value val-fail" id="eatCount">0</span></div>
+            <div class="status-card"><span class="status-label">먹지마</span><span class="status-value val-none" id="noEatCount">0</span></div>
+        </div>
+    </div>
+
+    <script>
+        // 보내주신 알림창 토큰값 매칭 완료
+        const MY_ALERT_TOKEN = "75c6b8a21c7823b99a405a00054b2e51"; 
+
+        // 💾 프리즘 메모리 창고(localStorage)에서 기존 스택 점수를 복구하는 기능
+        let currentMoney = parseInt(localStorage.getItem('savedMoney')) || 0;
+        let smokeStack = parseInt(localStorage.getItem('savedSmoke')) || 0;
+
+        document.getElementById('moneyText').innerText = "+" + currentMoney.toLocaleString() + '원';
+        document.getElementById('smokeStack').innerText = smokeStack;
+
+        // 투네이션 공식 인터넷 주소와 내 로컬 파일을 실시간으로 이어주는 무전기 통로 개방
+        const socket = io("https://remote.toon.at", {
+            path: "/socket.io",
+            query: { auth: MY_ALERT_TOKEN },
+            transports: ["websocket"],
+            forceNew: true
+        });
+
+        // 인터넷 신호가 들어올 때 화면 숫자를 즉시 갱신하고 영구 보관하는 장치
+        function processDonation(amount) {
+            if (!isNaN(amount) && amount > 0) {
+                currentMoney += amount;
+                localStorage.setItem('savedMoney', currentMoney); 
+                document.getElementById('moneyText').innerText = "+" + currentMoney.toLocaleString() + '원';
+
+                if (amount >= 1000) {
+                    smokeStack += Math.floor(amount / 1000);
+                    localStorage.setItem('savedSmoke', smokeStack); 
+                    document.getElementById('smokeStack').innerText = smokeStack;
+                }
+            }
+        }
+
+        // 실제 후원(donation) 및 대시보드 테스트 후원(test) 신호 수신부 연결 완료
+        socket.on("donation", (data) => { if (data && data.amount) processDonation(parseInt(data.amount)); });
+        socket.on("test", (data) => { if (data && data.amount) processDonation(parseInt(data.amount)); });
+    </script>
+</body>
+</html>
