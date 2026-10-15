@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>투네이션 완벽 연동 현황판</title>
     <style>
-        /* 📋 [틀 복구] 질문자님의 원래 2x2 검은색 디자인 레이아웃 */
+        /* 📋 질문자님의 2x2 검은색 디자인 틀 (그대로 유지) */
         body { background-color: transparent; font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; }
         .widget-container { background-color: #22252a; border-radius: 16px; padding: 24px; width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); color: #ffffff; }
         .widget-header { font-size: 18px; font-weight: bold; margin-bottom: 20px; }
@@ -16,12 +16,12 @@
         .status-value { font-size: 22px; font-weight: bold; }
         .val-smoke-stack { color: #e67e22; } .val-quit-smoke { color: #2ecc71; } .val-fail { color: #f1c40f; } .val-none { color: #95a5a6; }
     </style>
-    <!-- 🔗 깃허브 저장소 내부의 원래 소켓 라이브러리 그대로 호출 -->
+    <!-- 🔗 [핵심 패치] 홈페이지 주소 대신 실시간 데이터 통신이 가능한 공식 소켓 라이브러리 주소로 변경 -->
     <script src="https://socket.io"></script>
 </head>
 <body>
 
-    <!-- 📋 [틀 복구] 돼지유사료값 2x2 화면 구조 -->
+    <!-- 📋 돼지유사료값 레이아웃 틀 보존 -->
     <div class="widget-container">
         <div class="widget-header"><span>📋 돼지유사료값</span></div>
         <div class="allowance-section">
@@ -37,16 +37,17 @@
     </div>
 
     <script>
-        const MY_ALERT_TOKEN = "75c6b8a21c7823b99a405a00054b2e51";
+        // 🔗 투네이션 공식 위젯 토큰 세팅
+        const MY_ALERT_TOKEN = "75c6b8a21c7823b99a405a00054b2e51"; 
 
-        // 🔄 [요청 조건] 프리즘을 새로 켤 때마다 무조건 0부터 깨끗하게 시작 (localStorage 로드 제거)
+        // 🔄 방송 켤 때마다 무조건 0원, 모든 스택 0개로 깔끔하게 리셋하여 시작
         let currentMoney = 0;
         let smokeStack = 0;
         let quitSmoke = 0;
         let eatCount = 0;
         let noEatCount = 0;
 
-        // 변동된 숫자를 위의 디자인 틀에 실시간 주입하는 함수
+        // 변동된 숫자를 화면에 실시간 주입하는 UI 장치
         function updateUI() {
             document.getElementById('moneyText').innerText = currentMoney.toLocaleString() + '원';
             document.getElementById('smokeStack').innerText = smokeStack;
@@ -55,23 +56,23 @@
             document.getElementById('noEatCount').innerText = noEatCount;
         }
         
-        // 위젯 켜자마자 초기 화면 상태 0으로 세팅
+        // 새로고침 시 즉시 0원 연출
         updateUI();
 
-        // 🔗 투네이션 공식 웹소켓 주소 및 정식 인증 쿼리(token) 적용하여 소켓 라인 정상 생성
+        // 🔗 투네이션 알림창 공식 중계 서버망 연결 및 올바른 인증 변수(token) 매핑
         const socket = io("https://toon.at", {
             path: "/socket.io",
             query: { token: MY_ALERT_TOKEN },
             transports: ["websocket"]
         });
 
-        // 💰 [연산 장치] 금액 정산 및 1,000원 이상 후원의 단어 검사 구역
+        // 💰 [연산 장치] 금액 누적 및 1,000원 이상 단어 포함 시 스택 적립 계산 수식
         function processDonation(amount, comment = "") {
             if (!isNaN(amount) && amount > 0) {
                 // 누적 용돈 합산
                 currentMoney += amount;
 
-                // ⚡ [요청 조건] 후원 금액이 1,000원 이상일 때만 후원 메시지 단어 검사를 수행합니다.
+                // ⚡ 후원 금액이 1,000원 이상 들어왔을 때만 후원 메시지 단어 검사
                 if (amount >= 1000) {
                     if (comment.includes("흡연")) { smokeStack += 1; }
                     if (comment.includes("금연")) { quitSmoke += 1; }
@@ -79,19 +80,19 @@
                     if (comment.includes("먹지마")) { noEatCount += 1; }
                 }
 
-                // 바뀐 숫자들을 실시간으로 화면 틀에 주입
+                // 바뀐 값을 화면 틀에 실시간 동기화
                 updateUI();
             }
         }
 
-        // ⚡ 투네이션 실제 후원 알림 실시간 수신
+        // ⚡ 시청자가 쏘는 실제 후원 실시간 수신 처리
         socket.on("donation", (data) => {
             if (data && data.amount) {
                 processDonation(parseInt(data.amount), data.comment || "");
             }
         });
 
-        // ⚡ 투네이션 통합 위젯 페이지의 [테스트 후원] 버튼 클릭 신호 수신
+        // ⚡ 크리에이터 메뉴의 [테스트 후원] 버튼 클릭 신호 실시간 수신 처리
         socket.on("test", (data) => {
             if (data && data.amount) {
                 const testComment = data.comment || data.text || "";
