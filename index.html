@@ -2,9 +2,9 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>투네이션 완벽 연동 현황판 (최종)</title>
+    <title>투네이션 완벽 연동 현황판 (테스트 완벽 대응)</title>
     <style>
-        /* 💡 질문자님이 이미 완벽하게 잡아놓으신 2x2 디자인 틀 구조 그대로 적용 */
+        /* 💡 질문자님이 이미 완벽하게 잡아놓으신 2x2 디자인 틀 */
         body { background-color: transparent; font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; }
         .widget-container { background-color: #22252a; border-radius: 16px; padding: 24px; width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); color: #ffffff; }
         .widget-header { font-size: 18px; font-weight: bold; margin-bottom: 20px; }
@@ -16,7 +16,7 @@
         .status-value { font-size: 22px; font-weight: bold; }
         .val-smoke-stack { color: #e67e22; } .val-quit-smoke { color: #2ecc71; } .val-fail { color: #f1c40f; } .val-none { color: #95a5a6; }
     </style>
-    <!-- 투네이션 알림 수신 전용 호환 소켓 모듈 인터페이스 -->
+    <!-- 투네이션 알림창 연결 전용 소켓 라이브러리 -->
     <script src="https://cloudflare.com"></script>
 </head>
 <body>
@@ -25,15 +25,10 @@
         <div class="widget-header"><span>📋 용돈-흡연 현황</span></div>
         <div class="allowance-section">
             <span class="allowance-title">누적 용돈</span>
-            <!-- 💰 실시간 누적 용돈 출력 위치 -->
             <span class="allowance-amount" id="moneyText">0원</span>
         </div>
         <div class="status-grid">
-            <div class="status-card">
-                <span class="status-label">흡연스택</span>
-                <!-- 🚬 실시간 흡연스택 출력 위치 -->
-                <span class="status-value val-smoke-stack" id="smokeStack">0</span>
-            </div>
+            <div class="status-card"><span class="status-label">흡연스택</span><span class="status-value val-smoke-stack" id="smokeStack">0</span></div>
             <div class="status-card"><span class="status-label">금연스택</span><span class="status-value val-quit-smoke" id="quitSmoke">0</span></div>
             <div class="status-card"><span class="status-label">먹어</span><span class="status-value val-fail" id="eatCount">0</span></div>
             <div class="status-card"><span class="status-label">먹지마</span><span class="status-value val-none" id="noEatCount">0</span></div>
@@ -41,46 +36,51 @@
     </div>
 
     <script>
-        // 질문자님의 고유 알림창 주파수 토큰값 주입
         const MY_ALERT_TOKEN = "75c6b8a21c7823b99a405a00054b2e51"; 
 
-        // 브라우저 비밀 기억 장치(localStorage)에서 기존 스택 데이터 복구
+        // 브라우저 내부 보관함(localStorage)에서 기존 스택 복구
         let currentMoney = parseInt(localStorage.getItem('savedMoney')) || 0;
         let smokeStack = parseInt(localStorage.getItem('savedSmoke')) || 0;
 
         document.getElementById('moneyText').innerText = "+" + currentMoney.toLocaleString() + '원';
         document.getElementById('smokeStack').innerText = smokeStack;
 
-        // 투네이션 공식 소켓 통신 통로 연결
         const socket = io("https://remote.toon.at", {
             path: "/socket.io",
             query: { auth: MY_ALERT_TOKEN },
-            transports: ["websocket"],
-            forceNew: true
+            transports: ["websocket"]
         });
 
-        // ⚡ 질문자님이 말씀하신 "1000원당 +1 및 용돈 1000원 누적" 핵심 수식 탑재부
+        // 💰 [핵심] 돈과 스택을 가산하는 메인 연산 장치
         function processDonation(amount) {
             if (!isNaN(amount) && amount > 0) {
-                // 1. 누적 용돈 연산 (들어온 금액 그대로 플러스 합산)
                 currentMoney += amount;
                 localStorage.setItem('savedMoney', currentMoney); 
                 document.getElementById('moneyText').innerText = "+" + currentMoney.toLocaleString() + '원';
 
-                // 2. 흡연스택 연산 (정확하게 1,000원당 +1 가산)
                 if (amount >= 1000) {
-                    const calculatedStack = Math.floor(amount / 1000);
-                    smokeStack += calculatedStack;
+                    smokeStack += Math.floor(amount / 1000);
                     localStorage.setItem('savedSmoke', smokeStack); 
                     document.getElementById('smokeStack').innerText = smokeStack;
                 }
             }
         }
 
-        // 투네이션 실제 후원 및 테스트 후원 신호 수신 동시 활성화
+        // ⚡ 투네이션 실시간 수신 이벤트 핸들러
         socket.on("alertbox", (data) => {
-            if (data && data.content && data.content.amount) {
-                processDonation(parseInt(data.content.amount));
+            if (data && data.content) {
+                // 1. 실제 후원이 터졌을 때 금액 추출 규칙
+                if (data.content.amount) {
+                    processDonation(parseInt(data.content.amount));
+                } 
+                // 2. 💡 [핵심 패치] 질문자님이 지적하신 '테스트 후원' 버튼을 눌렀을 때의 가짜 금액 강제 추출 규칙 추가!
+                else if (data.content.text) {
+                    // 테스트 후원 알림 메시지 문장에서 '1,000' 같은 숫자만 강제로 추출해내는 정밀 수식
+                    const match = data.content.text.replace(/,/g, '').match(/\d+/);
+                    if (match) {
+                        processDonation(parseInt(match[0]));
+                    }
+                }
             }
         });
     </script>
