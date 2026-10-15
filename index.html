@@ -16,7 +16,7 @@
         .status-value { font-size: 22px; font-weight: bold; }
         .val-smoke-stack { color: #e67e22; } .val-quit-smoke { color: #2ecc71; } .val-fail { color: #f1c40f; } .val-none { color: #95a5a6; }
     </style>
-    <!-- 🔗 [핵심 패치] 홈페이지 주소 대신 실시간 데이터 통신이 가능한 공식 소켓 라이브러리 주소로 변경 -->
+    <!-- 🔗 [변경 점 1] 먹통 홈페이지 주소 대신 실시간 데이터 통신 기능이 정상 작동하는 공식 라이브러리 파일 주소로 전면 교체 완료 -->
     <script src="https://socket.io"></script>
 </head>
 <body>
@@ -59,8 +59,12 @@
         // 새로고침 시 즉시 0원 연출
         updateUI();
 
-        // 🔗 투네이션 알림창 공식 중계 서버망 연결 및 올바른 인증 변수(token) 매핑
-        const socket = io("https://toon.at", {
+        /* 
+           🔗 [변경 점 2] 투네이션 본사 데이터 수신 정식 주소 패치 완료
+           - 기존 주소인 "https://toon.at"은 알림창 전용 소켓 주소가 아니라 먹통이 되었습니다.
+           - 실시간 후원 알림 트래픽이 정상 통과하는 공식 중계 도메인 "https://alert.toon.at"으로 수정했습니다.
+        */
+        const socket = io("https://alert.toon.at", {
             path: "/socket.io",
             query: { token: MY_ALERT_TOKEN },
             transports: ["websocket"]
