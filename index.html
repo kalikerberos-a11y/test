@@ -1,72 +1,112 @@
-// 🔗 투네이션 공식 알림창 소켓 서버 및 토큰 설정
-const MY_ALERT_TOKEN = "75c6b8a21c7823b99a405a00054b2e51"; 
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>투네이션 완벽 연동 현황판 (테스트 완벽 대응)</title>
+    <style>
+        /* ✨ 질문자님의 원래 2x2 디자인 틀 스타일 시트 (그대로 복구) */
+        body { background-color: transparent; font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; }
+        .widget-container { background-color: #22252a; border-radius: 16px; padding: 24px; width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); color: #ffffff; }
+        .widget-header { font-size: 18px; font-weight: bold; margin-bottom: 20px; }
+        .allowance-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .allowance-amount { font-size: 28px; font-weight: 800; color: #f1c40f; }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .status-card { background-color: #2c3036; border-radius: 10px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; }
+        .status-label { font-size: 14px; color: #d1d5db; font-weight: bold; }
+        .status-value { font-size: 22px; font-weight: bold; }
+        .val-smoke-stack { color: #e67e22; } .val-quit-smoke { color: #2ecc71; } .val-fail { color: #f1c40f; } .val-none { color: #95a5a6; }
+    </style>
+    <!-- 🔗 공식 Socket.IO 라이브러리 연동 (연결 끊김 방지) -->
+    <script src="https://socket.io"></script>
+</head>
+<body>
 
-// 1. [수정] 방송을 새로 켤 때마다 무조건 0부터 깔끔하게 시작하도록 초기화 (localStorage 로드 제거)
-let currentMoney = 0;
-let smokeStack = 0;
-let quitSmoke = 0;
-let eatCount = 0;
-let noEatCount = 0;
+    <!-- ✨ 질문자님의 원래 화면 레이아웃 틀 (그대로 복구) -->
+    <div class="widget-container">
+        <div class="widget-header"><span>📋 돼지유사료값</span></div>
+        <div class="allowance-section">
+            <span class="allowance-title">누적 용돈</span>
+            <span class="allowance-amount" id="moneyText">0원</span>
+        </div>
+        <div class="status-grid">
+            <div class="status-card"><span class="status-label">흡연스택</span><span class="status-value val-smoke-stack" id="smokeStack">0</span></div>
+            <div class="status-card"><span class="status-label">금연스택</span><span class="status-value val-quit-smoke" id="quitSmoke">0</span></div>
+            <div class="status-card"><span class="status-label">먹어</span><span class="status-value val-fail" id="eatCount">0</span></div>
+            <div class="status-card"><span class="status-label">먹지마</span><span class="status-value val-none" id="noEatCount">0</span></div>
+        </div>
+    </div>
 
-// 화면 UI 글자들을 0으로 초기 세팅하는 함수
-function updateUI() {
-    if (document.getElementById('moneyText')) document.getElementById('moneyText').innerText = "+" + currentMoney.toLocaleString() + '원';
-    if (document.getElementById('smokeStack')) document.getElementById('smokeStack').innerText = smokeStack;
-    if (document.getElementById('quitSmoke')) document.getElementById('quitSmoke').innerText = quitSmoke;
-    if (document.getElementById('eatCount')) document.getElementById('eatCount').innerText = eatCount;
-    if (document.getElementById('noEatCount')) document.getElementById('noEatCount').innerText = noEatCount;
-}
-updateUI();
+    <script>
+        // 🔗 투네이션 알림 토큰 설정
+        const MY_ALERT_TOKEN = "75c6b8a21c7823b99a405a00054b2e51"; 
 
-// 2. [수정] 투네이션 실제 소켓 주소(alert.toon.at) 및 올바른 인증 쿼리(token) 적용
-const socket = io("https://toon.at", {
-    path: "/socket.io",
-    query: { token: MY_ALERT_TOKEN },
-    transports: ["websocket"]
-});
+        // 🔄 방송 켤 때마다 항상 0원, 0스택으로 깨끗하게 새로 시작하도록 변수 설정
+        let currentMoney = 0;
+        let smokeStack = 0;
+        let quitSmoke = 0;
+        let eatCount = 0;
+        let noEatCount = 0;
 
-// 💰 [핵심 연산 장치] 금액 정산 및 후원 메시지 단어 검사 구역
-function processDonation(amount, comment = "") {
-    if (!isNaN(amount) && amount > 0) {
-        // 누적 용돈 금액 더하기
-        currentMoney += amount;
+        // 숫자가 바뀌면 화면(HTML) 텍스트를 실시간으로 갱신해주는 장치
+        function updateUI() {
+            document.getElementById('moneyText').innerText = currentMoney.toLocaleString() + '원';
+            document.getElementById('smokeStack').innerText = smokeStack;
+            document.getElementById('quitSmoke').innerText = quitSmoke;
+            document.getElementById('eatCount').innerText = eatCount;
+            document.getElementById('noEatCount').innerText = noEatCount;
+        }
+        
+        // 켜자마자 화면을 모두 0으로 세팅
+        updateUI();
 
-        // 3. [조건 수정] 후원 금액이 1,000원 이상일 때만 단어 검사를 수행합니다.
-        if (amount >= 1000) {
-            
-            // 메시지(comment)에 해당 단어가 포함되어 있는지 꼼꼼하게 검사해서 +1씩 올립니다.
-            if (comment.includes("흡연")) {
-                smokeStack += 1;
-            }
-            if (comment.includes("금연")) {
-                quitSmoke += 1;
-            }
-            if (comment.includes("먹어")) {
-                eatCount += 1;
-            }
-            if (comment.includes("먹지마")) {
-                noEatCount += 1;
+        // 🔗 공식 alertbox 주소로 실시간 웹소켓 안전하게 연결
+        const socket = io("https://toon.at", {
+            path: "/socket.io",
+            query: { token: MY_ALERT_TOKEN },
+            transports: ["websocket"]
+        });
+
+        // 💰 후원금 정산 및 1,000원 이상 단어 포함 시 스택 연산 장치
+        function processDonation(amount, comment = "") {
+            if (!isNaN(amount) && amount > 0) {
+                // 누적 용돈 누적
+                currentMoney += amount;
+
+                // ⚡ 1,000원 이상 들어왔을 때만 후원 메시지 속 단어를 판별해 스택 적용
+                if (amount >= 1000) {
+                    if (comment.includes("흡연")) {
+                        smokeStack += 1;
+                    }
+                    if (comment.includes("금연")) {
+                        quitSmoke += 1;
+                    }
+                    if (comment.includes("먹어")) {
+                        eatCount += 1;
+                    }
+                    if (comment.includes("먹지마")) {
+                        noEatCount += 1;
+                    }
+                }
+
+                // 변동된 값을 원래 디자인 틀에 실시간 주입
+                updateUI();
             }
         }
 
-        // 바뀐 숫자들을 실시간으로 화면에 반영합니다.
-        updateUI();
-    }
-}
+        // ⚡ 실제 시청자 후원 수신
+        socket.on("donation", (data) => {
+            if (data && data.amount) {
+                processDonation(parseInt(data.amount), data.comment || "");
+            }
+        });
 
-// ⚡ 투네이션 실시간 실제 후원 알림 수신
-socket.on("donation", (data) => {
-    if (data && data.amount) {
-        // 실제 후원은 금액(amount)과 시청자 메시지(comment)가 따로 들어옵니다.
-        processDonation(parseInt(data.amount), data.comment || "");
-    }
-});
-
-// ⚡ 투네이션 크리에이터 페이지의 [테스트 후원] 버튼 대응 수신
-socket.on("test", (data) => {
-    if (data && data.amount) {
-        // 테스트 후원은 대개 메시지 내용이 data.comment 또는 data.text에 들어오므로 둘 다 방어적으로 체크합니다.
-        const testComment = data.comment || data.text || "";
-        processDonation(parseInt(data.amount), testComment);
-    }
-});
+        // ⚡ 통합 위젯 페이지 [테스트 후원] 버튼 수신
+        socket.on("test", (data) => {
+            if (data && data.amount) {
+                const testComment = data.comment || data.text || "";
+                processDonation(parseInt(data.amount), testComment);
+            }
+        });
+    </script>
+</body>
+</html>
