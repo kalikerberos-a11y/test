@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>투네이션 완벽 연동 현황판</title>
     <style>
-        /* 📋 질문자님의 원래 2x2 검은색 디자인 틀 (그대로 보전) */
+        /* 📋 질문자님의 원래 2x2 검은색 디자인 틀 (그대로 유지) */
         body { background-color: transparent; font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; }
         .widget-container { background-color: #22252a; border-radius: 16px; padding: 24px; width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); color: #ffffff; }
         .widget-header { font-size: 18px; font-weight: bold; margin-bottom: 20px; }
@@ -16,7 +16,7 @@
         .status-value { font-size: 22px; font-weight: bold; }
         .val-smoke-stack { color: #e67e22; } .val-quit-smoke { color: #2ecc71; } .val-fail { color: #f1c40f; } .val-none { color: #95a5a6; }
     </style>
-    <!-- 🔗 실시간 데이터 통신을 가능하게 해주는 공식 라이브러리 파일 주소 -->
+    <!-- 🔗 실시간 데이터 통신용 공식 라이브러리 부품 주소 -->
     <script src="https://socket.io"></script>
 </head>
 <body>
@@ -39,7 +39,7 @@
     <script>
         const MY_ALERT_TOKEN = "75c6b8a21c7823b99a405a00054b2e51"; 
 
-        // 🔄 방송 켤 때마다 무조건 모든 칸 0원, 0개 리셋으로 시작
+        // 🔄 방송 켤 때마다 무조건 모든 칸 0원, 모든 스택 0개 리셋으로 시작
         let currentMoney = 0;
         let smokeStack = 0;
         let quitSmoke = 0;
@@ -47,7 +47,7 @@
         let noEatCount = 0;
 
         function updateUI() {
-            document.getElementById('moneyText').innerText = currentMoney.toLocaleString() + '원';
+            document.getElementById('moneyText').innerText = "+" + currentMoney.toLocaleString() + '원';
             document.getElementById('smokeStack').innerText = smokeStack;
             document.getElementById('quitSmoke').innerText = quitSmoke;
             document.getElementById('eatCount').innerText = eatCount;
@@ -55,19 +55,19 @@
         }
         updateUI();
 
-        // 🔗 투네이션 공식 알림망 다이렉트 소켓 주소 연결
+        // 🔗 공식 알림 위젯 통신 서버 다이렉트 연결
         const socket = io("https://alert.toon.at", {
             path: "/socket.io",
             query: { token: MY_ALERT_TOKEN },
             transports: ["websocket"]
         });
 
-        // 💰 후원금 누적 및 단어 판별 핵심 연산장치
+        // 💰 돈 누적 및 1,000원 이상 미션 단어 판별 연산장치
         function processDonation(amount, comment = "") {
             if (!isNaN(amount) && amount > 0) {
                 currentMoney += amount;
 
-                // ⚡ 1000원 이상 들어왔을 때만 글자 매칭 검사 작동
+                // ⚡ 1,000원 이상 들어왔을 때만 후원 글씨 검사 작동
                 if (amount >= 1000) {
                     if (comment.includes("흡연")) { smokeStack += 1; }
                     if (comment.includes("금연")) { quitSmoke += 1; }
@@ -79,20 +79,19 @@
             }
         }
 
-        // ⚡ [실제 후원 수신] 실제 후원은 comment 변수에 메시지가 옵니다.
-        socket.on("donation", (data) => {
-            if (data && data.amount) {
-                processDonation(parseInt(data.amount), data.comment || "");
-            }
-        });
+        // ⚡ 투네이션 실시간 통합 수신 리스너 (alertbox)
+        socket.on("alertbox", (data) => {
+            if (data && data.content) {
+                // 투네이션 내부 데이터에서 금액(amount) 값 가려내기
+                const donationAmount = parseInt(data.content.amount) || 0;
+                
+                // 실제 후원의 comment 칸이나 가상 테스트의 text 칸에 있는 순수한 미션 메시지 추출
+                const donationMessage = data.content.comment || data.content.text || "";
 
-        // ⚡ [테스트 후원 수신 패치 완료]
-        // 테스트 알림은 메세지가 data.text 문장 안에 합쳐져서 들어오므로, 
-        // 문장 자체를 단어 검사기(comment)에 통째로 태워서 "흡연" 글자를 찾아내도록 완벽 교정했습니다.
-        socket.on("test", (data) => {
-            if (data && data.amount) {
-                const testMsg = data.text || data.comment || "";
-                processDonation(parseInt(data.amount), testMsg);
+                // 가상 테스트 창에 설정된 금액과 "흡연"이라는 글씨 데이터를 그대로 연산장치로 전달
+                if (donationAmount > 0) {
+                    processDonation(donationAmount, donationMessage);
+                }
             }
         });
     </script>
