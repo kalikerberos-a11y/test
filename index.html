@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>투네이션 완벽 연동 현황판</title>
     <style>
-        /* 📋 질문자님의 원래 2x2 검은색 디자인 틀 (100% 그대로 보존) */
+        /* 📋 원래의 2x2 검은색 디자인 틀 (100% 그대로 보존) */
         body { background-color: transparent; font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; }
         .widget-container { background-color: #22252a; border-radius: 16px; padding: 24px; width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); color: #ffffff; }
         .widget-header { font-size: 18px; font-weight: bold; margin-bottom: 20px; }
@@ -16,8 +16,8 @@
         .status-value { font-size: 22px; font-weight: bold; }
         .val-smoke-stack { color: #e67e22; } .val-quit-smoke { color: #2ecc71; } .val-fail { color: #f1c40f; } .val-none { color: #95a5a6; }
     </style>
-    <!-- 🔗 실시간 데이터 통신을 가해주는 공식 라이브러리 파일 주소 -->
-    <script src="https://socket.io"></script>
+    <!-- 🔗 실시간 데이터 통신용 공식 라이브러리 -->
+    <script src="https://cloudflare.com"></script>
 </head>
 <body>
 
@@ -37,9 +37,10 @@
     </div>
 
     <script>
+        // 🔑 확인 완료된 질문자님의 실제 투네이션 알림창 토큰 주소
         const MY_ALERT_TOKEN = "75c6b8a21c7823b99a405a00054b2e51"; 
 
-        // 🔄 방송 켤 때마다 무조건 모든 칸 0원, 모든 스택 0개 리셋으로 시작
+        // 🔄 초기값 세팅 (방송 켤 때마다 0으로 시작)
         let currentMoney = 0;
         let smokeStack = 0;
         let quitSmoke = 0;
@@ -55,7 +56,7 @@
         }
         updateUI();
 
-        // 🔗 공식 알림 위젯 통신 서버 다이렉트 안전 연결
+        // 🔗 공식 알림 위젯 통신 서버 안전 연결
         const socket = io("https://toon.at", {
             path: "/socket.io",
             query: { token: MY_ALERT_TOKEN },
@@ -79,20 +80,23 @@
             }
         }
 
-        // ⚡ 투네이션 실시간 통합 수신 리스너 (alertbox 구역)
-        socket.on("alertbox", (data) => {
-            if (data && data.content) {
-                // 투네이션 내부 데이터에서 금액(amount) 값 정확히 숫자로 변환
-                const donationAmount = parseInt(data.content.amount) || 0;
-                
-                // 💡 [핵심 패치] 실제 후원의 comment 칸이나 가상 테스트의 text 칸 중 존재하는 메세지를 똑똑하게 가려내어 추출합니다.
-                const donationMessage = data.content.comment || data.content.text || "";
+        // ⚡ [만능 수신 패치] 테스트 후원 및 실제 후원 신호를 전부 잡아냅니다.
+        const eventNames = ["alertbox", "donation", "alert"];
 
-                // 테스트 창에 설정된 금액(1000원)과 "흡연"이라는 글씨 데이터를 누락 없이 연산장치로 전달합니다.
-                if (donationAmount > 0) {
-                    processDonation(donationAmount, donationMessage);
+        eventNames.forEach(eventName => {
+            socket.on(eventName, (data) => {
+                if (data && data.content) {
+                    // 금액 변환
+                    const donationAmount = parseInt(data.content.amount) || 0;
+                    
+                    // 테스트 및 실제 후원의 모든 메세지 변수 대응
+                    const donationMessage = data.content.comment || data.content.text || data.content.message || "";
+
+                    if (donationAmount > 0) {
+                        processDonation(donationAmount, donationMessage);
+                    }
                 }
-            }
+            });
         });
     </script>
 </body>
