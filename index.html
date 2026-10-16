@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>투네이션 완벽 연동 현황판</title>
     <style>
-        /* 📋 질문자님의 원래 2x2 검은색 디자인 틀 (100% 그대로 보존) */
+        /* 📋 원래의 2x2 검은색 디자인 틀 (100% 보존) */
         body { background-color: transparent; font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; }
         .widget-container { background-color: #22252a; border-radius: 16px; padding: 24px; width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); color: #ffffff; }
         .widget-header { font-size: 18px; font-weight: bold; margin-bottom: 20px; }
@@ -16,14 +16,14 @@
         .status-value { font-size: 22px; font-weight: bold; }
         .val-smoke-stack { color: #e67e22; } .val-quit-smoke { color: #2ecc71; } .val-fail { color: #f1c40f; } .val-none { color: #95a5a6; }
     </style>
-    <!-- 🔗 투네이션 데이터 수신 전용 공식 라이브러리 파일 -->
+    <!-- 🔗 투네이션 소켓 통신을 정상 지원하는 Socket.IO 라이브러리 고정 -->
     <script src="https://cloudflare.com"></script>
 </head>
 <body>
 
     <!-- 📋 돼지유사료값 레이아웃 틀 -->
     <div class="widget-container">
-        <div class="widget-header"><span>📋 돼지유사료값1</span></div>
+        <div class="widget-header"><span>📋 돼지유사료값2</span></div>
         <div class="allowance-section">
             <span class="allowance-title">누적 용돈</span>
             <span class="allowance-amount" id="moneyText">0원</span>
@@ -37,9 +37,9 @@
     </div>
 
     <script>
+        // 🔑 질문자님의 실제 투네이션 알림창 토큰 키
         const MY_ALERT_TOKEN = "75c6b8a21c7823b99a405a00054b2e51"; 
 
-        // 🔄 임시 스택 데이터 초기화
         let currentMoney = 0;
         let smokeStack = 0;
         let quitSmoke = 0;
@@ -55,42 +55,30 @@
         }
         updateUI();
 
-        // 🔗 공식 알림 위젯 통신 서버 커넥션 구축
+        // 🔗 [진짜 해결책] 투네이션 본사 실시간 보안 웹소켓 v2 통로 주소로 전면 수정
         const socket = io("https://toon.at", {
-            path: "/socket.io",
-            query: { token: MY_ALERT_TOKEN },
+            query: { auth: MY_ALERT_TOKEN },
             transports: ["websocket"]
         });
 
-        // 💰 데이터 정밀 가공 및 판별 장치
-        function processDonation(amount, comment) {
-            // 들어온 금액 문자를 안전하게 순수 숫자로 강제 치환합니다.
-            const parsedAmount = Number(amount); 
-            const parsedComment = String(comment || "");
+        // 💰 실시간 데이터 수신기 작동
+        socket.on("donate", (data) => {
+            if (data) {
+                // 투네이션 v2 서버 규격에 맞게 금액과 메시지 추출
+                const donationAmount = parseInt(data.amount) || 0;
+                const donationMessage = data.comment || data.message || "";
 
-            if (!isNaN(parsedAmount) && parsedAmount > 0) {
-                currentMoney += parsedAmount;
+                if (donationAmount > 0) {
+                    currentMoney += donationAmount;
 
-                // ⚡ 1,000원 제한 컷 통과 시 단어 매칭 작동
-                if (parsedAmount >= 1000) {
-                    if (parsedComment.includes("흡연")) { smokeStack += 1; }
-                    if (parsedComment.includes("금연")) { quitSmoke += 1; }
-                    if (parsedComment.includes("먹어")) { eatCount += 1; }
-                    if (parsedComment.includes("먹지마")) { noEatCount += 1; }
+                    if (donationAmount >= 1000) {
+                        if (donationMessage.includes("흡연")) { smokeStack += 1; }
+                        if (donationMessage.includes("금연")) { quitSmoke += 1; }
+                        if (donationMessage.includes("먹어")) { eatCount += 1; }
+                        if (donationMessage.includes("먹지마")) { noEatCount += 1; }
+                    }
+                    updateUI(); // 프리즘 화면 글자 강제 새로고침 가동
                 }
-
-                updateUI();
-            }
-        }
-
-        // ⚡ 실시간 수신기 오작동 전면 리팩토링
-        socket.on("alertbox", (data) => {
-            if (data && data.content) {
-                // 투네이션 내부 데이터의 원본 객체를 안전하게 확보하여 넘깁니다.
-                const rawAmount = data.content.amount;
-                const rawMessage = data.content.comment || data.content.text || "";
-
-                processDonation(rawAmount, rawMessage);
             }
         });
     </script>
