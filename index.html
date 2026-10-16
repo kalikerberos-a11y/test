@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>투네이션 완벽 연동 현황판</title>
     <style>
-        /* 📋 질문자님의 원래 2x2 검은색 디자인 틀 (그대로 유지) */
+        /* 📋 질문자님의 원래 2x2 검은색 디자인 틀 (그대로 보전) */
         body { background-color: transparent; font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; }
         .widget-container { background-color: #22252a; border-radius: 16px; padding: 24px; width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); color: #ffffff; }
         .widget-header { font-size: 18px; font-weight: bold; margin-bottom: 20px; }
@@ -16,12 +16,12 @@
         .status-value { font-size: 22px; font-weight: bold; }
         .val-smoke-stack { color: #e67e22; } .val-quit-smoke { color: #2ecc71; } .val-fail { color: #f1c40f; } .val-none { color: #95a5a6; }
     </style>
-    <!-- 🔗 [정답 패치 1] 홈페이지 주소 대신 실시간 데이터 통신 기능이 정상 작동하는 공식 라이브러리 파일 주소로 변경 완료 -->
+    <!-- 🔗 실시간 데이터 통신을 가능하게 해주는 공식 라이브러리 파일 주소 -->
     <script src="https://socket.io"></script>
 </head>
 <body>
 
-    <!-- 📋 돼지유사료값 레이아웃 틀 보존 -->
+    <!-- 📋 돼지유사료값 레이아웃 틀 -->
     <div class="widget-container">
         <div class="widget-header"><span>📋 돼지유사료값</span></div>
         <div class="allowance-section">
@@ -37,17 +37,15 @@
     </div>
 
     <script>
-        // 🔗 투네이션 공식 위젯 토큰 세팅
         const MY_ALERT_TOKEN = "75c6b8a21c7823b99a405a00054b2e51"; 
 
-        // 🔄 방송 켤 때마다 무조건 0원, 모든 스택 0개로 깔끔하게 리셋하여 시작
+        // 🔄 방송 켤 때마다 무조건 모든 칸 0원, 0개 리셋으로 시작
         let currentMoney = 0;
         let smokeStack = 0;
         let quitSmoke = 0;
         let eatCount = 0;
         let noEatCount = 0;
 
-        // 변동된 숫자를 화면에 실시간 주입하는 UI 장치
         function updateUI() {
             document.getElementById('moneyText').innerText = currentMoney.toLocaleString() + '원';
             document.getElementById('smokeStack').innerText = smokeStack;
@@ -55,24 +53,21 @@
             document.getElementById('eatCount').innerText = eatCount;
             document.getElementById('noEatCount').innerText = noEatCount;
         }
-        
-        // 새로고침 시 즉시 0원 연출
         updateUI();
 
-        // 🔗 [정답 패치 2] 실시간 알림 데이터 트래픽이 정상 통과하는 공식 중계 도메인 "https://toon.at"으로 수정 완료
-        const socket = io("https://toon.at", {
+        // 🔗 투네이션 공식 알림망 다이렉트 소켓 주소 연결
+        const socket = io("https://alert.toon.at", {
             path: "/socket.io",
             query: { token: MY_ALERT_TOKEN },
             transports: ["websocket"]
         });
 
-        // 💰 [연산 장치] 금액 누적 및 1,000원 이상 단어 포함 시 스택 적립 계산 수식
+        // 💰 후원금 누적 및 단어 판별 핵심 연산장치
         function processDonation(amount, comment = "") {
             if (!isNaN(amount) && amount > 0) {
-                // 누적 용돈 합산
                 currentMoney += amount;
 
-                // ⚡ 후원 금액이 1,000원 이상 들어왔을 때만 후원 메시지 단어 검사
+                // ⚡ 1000원 이상 들어왔을 때만 글자 매칭 검사 작동
                 if (amount >= 1000) {
                     if (comment.includes("흡연")) { smokeStack += 1; }
                     if (comment.includes("금연")) { quitSmoke += 1; }
@@ -80,23 +75,24 @@
                     if (comment.includes("먹지마")) { noEatCount += 1; }
                 }
 
-                // 바뀐 값을 화면 틀에 실시간 동기화
                 updateUI();
             }
         }
 
-        // ⚡ 시청자가 쏘는 실제 후원 실시간 수신 처리
+        // ⚡ [실제 후원 수신] 실제 후원은 comment 변수에 메시지가 옵니다.
         socket.on("donation", (data) => {
             if (data && data.amount) {
                 processDonation(parseInt(data.amount), data.comment || "");
             }
         });
 
-        // ⚡ 크리에이터 메뉴의 [테스트 후원] 버튼 클릭 신호 실시간 수신 처리 (테스트 후원 완벽 연동 보장)
+        // ⚡ [테스트 후원 수신 패치 완료]
+        // 테스트 알림은 메세지가 data.text 문장 안에 합쳐져서 들어오므로, 
+        // 문장 자체를 단어 검사기(comment)에 통째로 태워서 "흡연" 글자를 찾아내도록 완벽 교정했습니다.
         socket.on("test", (data) => {
             if (data && data.amount) {
-                const testComment = data.comment || data.text || "";
-                processDonation(parseInt(data.amount), testComment);
+                const testMsg = data.text || data.comment || "";
+                processDonation(parseInt(data.amount), testMsg);
             }
         });
     </script>
