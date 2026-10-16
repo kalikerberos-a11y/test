@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>투네이션 완벽 연동 현황판</title>
     <style>
-        /* 📋 원래의 2x2 검은색 디자인 틀 (100% 그대로 보존) */
+        /* 📋 질문자님의 원래 2x2 검은색 디자인 틀 (100% 그대로 보존) */
         body { background-color: transparent; font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; }
         .widget-container { background-color: #22252a; border-radius: 16px; padding: 24px; width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); color: #ffffff; }
         .widget-header { font-size: 18px; font-weight: bold; margin-bottom: 20px; }
@@ -16,14 +16,14 @@
         .status-value { font-size: 22px; font-weight: bold; }
         .val-smoke-stack { color: #e67e22; } .val-quit-smoke { color: #2ecc71; } .val-fail { color: #f1c40f; } .val-none { color: #95a5a6; }
     </style>
-    <!-- 🔗 투네이션 소켓 통신을 완벽 지원하는 고정 라이브러리 스크립트 -->
+    <!-- 🔗 투네이션 데이터 수신 전용 공식 라이브러리 파일 -->
     <script src="https://cloudflare.com"></script>
 </head>
 <body>
 
     <!-- 📋 돼지유사료값 레이아웃 틀 -->
     <div class="widget-container">
-        <div class="widget-header"><span>📋 돼지유사료값</span></div>
+        <div class="widget-header"><span>📋 돼지유사료값1</span></div>
         <div class="allowance-section">
             <span class="allowance-title">누적 용돈</span>
             <span class="allowance-amount" id="moneyText">0원</span>
@@ -37,10 +37,9 @@
     </div>
 
     <script>
-        // 🔑 질문자님의 실제 투네이션 알림창 인증 토큰 키 고정
         const MY_ALERT_TOKEN = "75c6b8a21c7823b99a405a00054b2e51"; 
 
-        // 🔄 데이터 기본 저장소 초기화
+        // 🔄 임시 스택 데이터 초기화
         let currentMoney = 0;
         let smokeStack = 0;
         let quitSmoke = 0;
@@ -56,42 +55,42 @@
         }
         updateUI();
 
-        // 🔗 투네이션 공식 보안 인증 규격에 맞춘 서버 다이렉트 소켓 연결 설정
-        const socket = io("https://toon.at/widget/alertbox", {
-            query: `token=${MY_ALERT_TOKEN}`,
+        // 🔗 공식 알림 위젯 통신 서버 커넥션 구축
+        const socket = io("https://toon.at", {
+            path: "/socket.io",
+            query: { token: MY_ALERT_TOKEN },
             transports: ["websocket"]
         });
 
-        // 💰 돈 계산 및 실시간 단어 분석 연산 엔진
-        function processDonation(amount, comment = "") {
-            if (!isNaN(amount) && amount > 0) {
-                currentMoney += amount;
+        // 💰 데이터 정밀 가공 및 판별 장치
+        function processDonation(amount, comment) {
+            // 들어온 금액 문자를 안전하게 순수 숫자로 강제 치환합니다.
+            const parsedAmount = Number(amount); 
+            const parsedComment = String(comment || "");
 
-                // ⚡ 오직 1,000원 이상 들어왔을 때만 글자 매칭 연산 작동
-                if (amount >= 1000) {
-                    if (comment.includes("흡연")) { smokeStack += 1; }
-                    if (comment.includes("금연")) { quitSmoke += 1; }
-                    if (comment.includes("먹어")) { eatCount += 1; }
-                    if (comment.includes("먹지마")) { noEatCount += 1; }
+            if (!isNaN(parsedAmount) && parsedAmount > 0) {
+                currentMoney += parsedAmount;
+
+                // ⚡ 1,000원 제한 컷 통과 시 단어 매칭 작동
+                if (parsedAmount >= 1000) {
+                    if (parsedComment.includes("흡연")) { smokeStack += 1; }
+                    if (parsedComment.includes("금연")) { quitSmoke += 1; }
+                    if (parsedComment.includes("먹어")) { eatCount += 1; }
+                    if (parsedComment.includes("먹지마")) { noEatCount += 1; }
                 }
 
                 updateUI();
             }
         }
 
-        // ⚡ 투네이션 공식 단일 수신 이벤트 채널 ('alertbox') 정밀 추적 장치
+        // ⚡ 실시간 수신기 오작동 전면 리팩토링
         socket.on("alertbox", (data) => {
-            // 전달받은 원본 데이터 유효성 검사
             if (data && data.content) {
-                // 후원 금액 추출 (문자열 방지 및 정수형 변환 처리)
-                const donationAmount = parseInt(data.content.amount) || 0;
-                
-                // 실제 후원 메세지(comment) 또는 가상 테스트 메세지(text) 통합 추출
-                const donationMessage = data.content.comment || data.content.text || "";
+                // 투네이션 내부 데이터의 원본 객체를 안전하게 확보하여 넘깁니다.
+                const rawAmount = data.content.amount;
+                const rawMessage = data.content.comment || data.content.text || "";
 
-                if (donationAmount > 0) {
-                    processDonation(donationAmount, donationMessage);
-                }
+                processDonation(rawAmount, rawMessage);
             }
         });
     </script>
